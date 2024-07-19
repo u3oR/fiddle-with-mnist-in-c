@@ -8,11 +8,12 @@
 
 typedef struct _Node
 {
-    double *pdInput;
     int iInputSize;
+    double *pdInput;
     double *pdWeight;
-    double dBias;
-    double dOutput;
+
+    double *pdBias;
+    double *pdOutput;
 } Node;
 
 
@@ -20,9 +21,24 @@ typedef struct _Layer
 {
     Node *pxNodeArray;
     int iNodeArraySize;
-    double (*Activate)(double);
+
+    double *pdInputArray;
+    double *pdOutputArray;
+
     int cLayerType;
+    double (*Activate)(double);
+    void (*ForWard)(struct _Layer *pxLayer, double *pdInput);
+    void (*Backward)(struct _Layer *pxLayer, double *pOutputGradient);
 } Layer;
+
+
+
+typedef struct _NetworkManager
+{
+    void **aAllMallocMemberArray;     // 所有动态子成员的内存地址
+    int iAllMallocMemberArraySize;    // 所有动态子成员的个数
+    long long llAllMallocMemorySize;  // 整个网络占据的动态空间大小
+} NetworkManager;
 
 
 typedef struct _Network
@@ -30,8 +46,7 @@ typedef struct _Network
     Layer *pxLayerArray;
     int iLayerArraySize;
 
-    void **__aAllMallocMemberArray;
-    int __iAllMallocMemberArraySize;
+    NetworkManager xNetManager;
 } Network;
 
 
@@ -81,9 +96,9 @@ Network *CreateAndInit(int iInputSize, int iOutputSize, NetDeclareTable *pxTable
 
 void Release(Network *pxNet)
 {
-    for (int i = 0; i < pxNet->__iAllMallocMemberArraySize; i++)
+    for (int i = 0; i < pxNet->xNetManager.iAllMallocMemberArraySize; i++)
     {
-        free(pxNet->__aAllMallocMemberArray[i]);
+        free(pxNet->xNetManager.aAllMallocMemberArray[i]);
     }
 
     free(pxNet);
@@ -91,7 +106,7 @@ void Release(Network *pxNet)
 
 
 
-void Forward(Network *pxNet, double **ppdInput, int iInputSize, double *pdOutput, int iOutputSize)
+void Forward(Network *pxNet, double *pdInput)
 {
     /* 每一层 */
     for (int iLayerIndex = 0; iLayerIndex < pxNet->iLayerArraySize; iLayerIndex++)

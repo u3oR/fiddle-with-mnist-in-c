@@ -1,0 +1,6 @@
+*
+
+!*.c
+!.git*
+!Makefile
+!README.md
