@@ -32,8 +32,8 @@ typedef struct _Layer
 
     int cLayerType;
     ActivationFunction ActiveFunc;
-    void (*ForWard)(struct _Layer *pxLayer, double *pdInputArray);
-    void (*Backward)(struct _Layer *pxLayer, double *pOutputGradient);
+    // void (*ForWard)(struct _Layer *pxLayer, double *pdInputArray);
+    // void (*Backward)(struct _Layer *pxLayer, double *pOutputGradient);
 } Layer;
 
 
@@ -122,7 +122,6 @@ Network *CreateAndInit(int iInputSize, NetDeclareTable *pxTable)
     for (int i = 0; i < pxNet->iLayerArraySize; i++)
     {
         /* 每一层 */
-        printf("ok\n");
         pxLayer = pxNet->pxLayerArray + i;
         pxLayerTable = pxTable->pxLayerTable + i;
         
@@ -148,6 +147,8 @@ Network *CreateAndInit(int iInputSize, NetDeclareTable *pxTable)
             pxNode->iInputSize = iInputSize;
             pxNode->pdInputArray = pxLayer->pdInputArray;
             pxNode->pdOutput = pxLayer->pdOutputArray + j;
+
+
             pxNode->pdWeightArray = malloc(sizeof(double) * pxNode->iInputSize);
 
             for (int k = 0; k < pxNode->iInputSize; k++)
@@ -175,9 +176,9 @@ Network *CreateAndInit(int iInputSize, NetDeclareTable *pxTable)
         iInputSize = pxLayerTable->iNodeNumber;
     }
     
-
+    /* 连接最后一层输出和模型的输出 */
     pxNet->iOutputArraySize = pxLayerTable->iNodeNumber;
-    pxLayer->pdOutputArray = pxLayer->pdOutputArray;
+    pxNet->pdOutputArray = pxLayer->pdOutputArray;
 
 
     return pxNet;
@@ -199,12 +200,11 @@ void Forward(Network *pxNet, double *pdInputArray)
 {
     /* 将数据复制到模型的输入层 */
     memcpy(pxNet->pdInputArray, pdInputArray, sizeof(double) * pxNet->iInputArraySize);
-    printf("Forward\n");
     /* 每一层 */
     for (int iLayerIndex = 0; iLayerIndex < pxNet->iLayerArraySize; iLayerIndex++)
     {
         Layer *pxLayer = pxNet->pxLayerArray + iLayerIndex;
-        printf("Forward0\n");
+
         /* 每一个节点 计算累加*/
         for (int iNodeIndex = 0; iNodeIndex < pxLayer->iNodeArraySize; iNodeIndex++)
         {
@@ -220,7 +220,7 @@ void Forward(Network *pxNet, double *pdInputArray)
             *(pxNode->pdOutput) += *(pxNode->pdBias);
 
         }
-        printf("Forward1\n");
+
         /* 激活函数 */
         for (int iNodeIndex = 0; iNodeIndex < pxLayer->iNodeArraySize; iNodeIndex++)
         {
@@ -247,7 +247,7 @@ void Backward()
 LayerDeclareTable axLayerTable[LAYER_NUM] = {
     {.sLayerType = "Dense", .iNodeNumber = 128, .sActivateFunType = "Relu"},
     {.sLayerType = "Dense", .iNodeNumber = 64, .sActivateFunType = "Relu"},
-    {.sLayerType = "Dense", .iNodeNumber = 10, .sActivateFunType = "Relu"}
+    {.sLayerType = "Dense", .iNodeNumber = 10, .sActivateFunType = "Softmax"}
 };
 
 #define INPUT_SIZE (784)
@@ -255,27 +255,37 @@ double adInput[INPUT_SIZE] = {0};
 
 int main()
 {
-    /* code */
-    printf("ok\n");
-
+    /* 网络结构描述 */
     NetDeclareTable xNetTable = {
         .iLayerNumber = LAYER_NUM,
         .pxLayerTable = axLayerTable    
     };
 
-    
-
+    /* 创建网络 */
     Network *pxNet = CreateAndInit(INPUT_SIZE, &xNetTable);
 
+    /* 前向传播 */
     Forward(pxNet, adInput);
+    
+    /* 输出结果 */
 
-    printf("Print\n");
-
+    double dSum = 0;
+    
     for (int i = 0; i < pxNet->iOutputArraySize; i++)
     {
-        printf("%f, ", *(pxNet->pdOutputArray + i));
+        dSum += pxNet->pdOutputArray[i];
+        
     }
-    
+    printf("dSum = %f\n", dSum);
+
+    double dSum2 = 0;
+    for (int i = 0; i < pxNet->iOutputArraySize; i++)
+    {
+        dSum2 += pxNet->pdOutputArray[i] / dSum;
+        printf("%f, ", pxNet->pdOutputArray[i] / dSum);
+    }
+    printf("\n");
+    printf("dSum2 = %f\n", dSum2);
 
     return 0;
 }
