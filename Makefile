@@ -3,14 +3,17 @@ TARGET = fiddle
 
 CC = gcc
 
-CFLAGS := -Wall
+CFLAGS :=  
+CFLAGS := $(CFLAGS) -Wall
 CFLAGS := $(CFLAGS) -Wextra
-CFLAGS := $(CFLAGS) -std=c11
+
+LDFLAGS := 
+LDFLAGS := $(LDFLAGS) -lm
 
 all: $(TARGET)
 
 $(TARGET): main.o
-	$(CC) $^ -o $@ $(CFLAGS)
+	$(CC) $^ -o $@ $(CFLAGS) $(LDFLAGS)
 
 main.o: main.c
 	$(CC) -c $< $(CFLAGS)
