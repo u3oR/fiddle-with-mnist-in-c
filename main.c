@@ -82,11 +82,16 @@ double Sigmoid(double *pInput, int iInputLen, int iNodeIndex)
     return 1.0f / (1.0f + exp(0.0f-*pInput));
 }
 
-double Relu(double *pInput, int iInputLen, int iNodeIndex)
+double ReLU(double *pInput, int iInputLen, int iNodeIndex)
 {
     __UNUESD(iInputLen);
     __UNUESD(iNodeIndex);
     return (*pInput > 0) ? *pInput : 0;
+}
+
+double dReLU(double dInput)
+{
+    return (dInput > 0) ? (1) : (0);
 }
 
 double Softmax(double *pdArray, int iArrayLen, int iNodeIndex)
@@ -163,9 +168,9 @@ Network *CreateAndInit(int iInputSize, NetDeclareTable *pxTable)
         
 
         /* 激活函数 */
-        if (strcmp(pxLayerTable->sActivateFunType, "Relu") == 0)
+        if (strcmp(pxLayerTable->sActivateFunType, "ReLU") == 0)
         {
-            pxLayer->ActiveFunc = Relu;
+            pxLayer->ActiveFunc = ReLU;
         }else
         {
             pxLayer->ActiveFunc = Softmax;
@@ -236,17 +241,56 @@ void Forward(Network *pxNet, double *pdInputArray)
 }
 
 
-void Backward()
+void Backward(Network *pxNet, double dLearningRate, double *pdTargetOutputArray)
 {
+    double *pdErrorArray = NULL;
+    double *pdTargetArray = NULL;
+    
+    pdTargetArray = pdTargetOutputArray;
 
+    for (int iLayerIndex = pxNet->iLayerArraySize - 1; iLayerIndex >= 0; iLayerIndex--)
+    {
+        /* 从后向前 每一层 */
+
+        Layer *pxLayer = pxNet->pxLayerArray + iLayerIndex;
+        pdErrorArray = malloc(sizeof(double) * pxLayer->iNodeArraySize);
+
+        for (int i = 0; i < pxLayer->iNodeArraySize; i++)
+        {
+            /* 计算误差 */
+            pdErrorArray[i] = pdTargetArray[i] - pxLayer->pdOutputArray[i];
+            /* 计算梯度 */
+            pdErrorArray[i] = pdErrorArray[i] * dReLU(pxLayer->pdOutputArray[i]);
+        }
+
+        
+        for (int i = 0; i < pxLayer->iNodeArraySize; i++)
+        {
+            /* 每个节点 */
+
+            Node *pxNode = &(pxLayer->pxNodeArray[i]);
+
+            /*  */
+            for (int j = 0; j < pxNode->iInputSize; j++)
+            {
+                /* 调整权重 */
+                // pxNode->pdWeightArray[j] -= dLearningRate *;
+            }
+
+            /* 调整偏置 */
+            // *pxNode->pdBias -= dLearningRate * ;
+        }
+
+    }
+    
 }
 
 
 #define LAYER_NUM 3
 
 LayerDeclareTable axLayerTable[LAYER_NUM] = {
-    {.sLayerType = "Dense", .iNodeNumber = 128, .sActivateFunType = "Relu"},
-    {.sLayerType = "Dense", .iNodeNumber = 64, .sActivateFunType = "Relu"},
+    {.sLayerType = "Dense", .iNodeNumber = 128, .sActivateFunType = "ReLU"},
+    {.sLayerType = "Dense", .iNodeNumber = 64, .sActivateFunType = "ReLU"},
     {.sLayerType = "Dense", .iNodeNumber = 10, .sActivateFunType = "Softmax"}
 };
 
@@ -289,3 +333,4 @@ int main()
 
     return 0;
 }
+
