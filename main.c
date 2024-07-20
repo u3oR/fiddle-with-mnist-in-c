@@ -122,7 +122,7 @@ Network *CreateAndInit(int iInputSize, NetDeclareTable *pxTable)
     for (int i = 0; i < pxNet->iLayerArraySize; i++)
     {
         /* 每一层 */
-
+        printf("ok\n");
         pxLayer = pxNet->pxLayerArray + i;
         pxLayerTable = pxTable->pxLayerTable + i;
         
@@ -141,15 +141,16 @@ Network *CreateAndInit(int iInputSize, NetDeclareTable *pxTable)
         pxLayer->iNodeArraySize = pxLayerTable->iNodeNumber;
         pxLayer->pxNodeArray = malloc(sizeof(Node) * pxLayer->iNodeArraySize);
 
-        for (int i = 0; i < pxLayer->iNodeArraySize; i++)
+        for (int j = 0; j < pxLayer->iNodeArraySize; j++)
         {
-            Node *pxNode = pxLayer->pxNodeArray + i;
+            Node *pxNode = pxLayer->pxNodeArray + j;
 
             pxNode->iInputSize = iInputSize;
             pxNode->pdInputArray = pxLayer->pdInputArray;
-            pxNode->pdOutput = pxLayer->pdOutputArray + i;
+            pxNode->pdOutput = pxLayer->pdOutputArray + j;
             pxNode->pdWeightArray = malloc(sizeof(double) * pxNode->iInputSize);
-            for (int i = 0; i < pxNode->iInputSize; i++)
+
+            for (int k = 0; k < pxNode->iInputSize; k++)
             {
                 *(pxNode->pdOutput) = 1.0f * rand() / RAND_MAX;
             }
@@ -198,12 +199,12 @@ void Forward(Network *pxNet, double *pdInputArray)
 {
     /* 将数据复制到模型的输入层 */
     memcpy(pxNet->pdInputArray, pdInputArray, sizeof(double) * pxNet->iInputArraySize);
-    
+    printf("Forward\n");
     /* 每一层 */
     for (int iLayerIndex = 0; iLayerIndex < pxNet->iLayerArraySize; iLayerIndex++)
     {
         Layer *pxLayer = pxNet->pxLayerArray + iLayerIndex;
-
+        printf("Forward0\n");
         /* 每一个节点 计算累加*/
         for (int iNodeIndex = 0; iNodeIndex < pxLayer->iNodeArraySize; iNodeIndex++)
         {
@@ -219,7 +220,7 @@ void Forward(Network *pxNet, double *pdInputArray)
             *(pxNode->pdOutput) += *(pxNode->pdBias);
 
         }
-
+        printf("Forward1\n");
         /* 激活函数 */
         for (int iNodeIndex = 0; iNodeIndex < pxLayer->iNodeArraySize; iNodeIndex++)
         {
@@ -241,12 +242,12 @@ void Backward()
 }
 
 
-#define LAYER_NUM 4
+#define LAYER_NUM 3
 
 LayerDeclareTable axLayerTable[LAYER_NUM] = {
     {.sLayerType = "Dense", .iNodeNumber = 128, .sActivateFunType = "Relu"},
     {.sLayerType = "Dense", .iNodeNumber = 64, .sActivateFunType = "Relu"},
-    {.sLayerType = "Dense", .iNodeNumber = 10, .sActivateFunType = "Relu"},
+    {.sLayerType = "Dense", .iNodeNumber = 10, .sActivateFunType = "Relu"}
 };
 
 #define INPUT_SIZE (784)
@@ -268,9 +269,11 @@ int main()
 
     Forward(pxNet, adInput);
 
+    printf("Print\n");
+
     for (int i = 0; i < pxNet->iOutputArraySize; i++)
     {
-        printf("%lf, ", pxNet->pdOutputArray[i]);
+        printf("%f, ", *(pxNet->pdOutputArray + i));
     }
     
 
