@@ -200,7 +200,9 @@ void Release(Network *pxNet)
 }
 
 
-
+/// @brief 前向传播
+/// @param pxNet 神经网络对象
+/// @param pdInputArray 输入数据
 void Forward(Network *pxNet, double *pdInputArray)
 {
     /* 将数据复制到模型的输入层 */
@@ -210,7 +212,7 @@ void Forward(Network *pxNet, double *pdInputArray)
     {
         Layer *pxLayer = pxNet->pxLayerArray + iLayerIndex;
 
-        /* 每一个节点 计算累加*/
+        /* 每一个节点 计算累加 WX+b*/
         for (int iNodeIndex = 0; iNodeIndex < pxLayer->iNodeArraySize; iNodeIndex++)
         {
             Node *pxNode = pxLayer->pxNodeArray + iNodeIndex;
@@ -240,27 +242,76 @@ void Forward(Network *pxNet, double *pdInputArray)
     }
 }
 
+/// @brief 交换两个指针的地址
+/// @param x 指针1的地址
+/// @param y 指针2的地址
+static void _SwapPointer(void *x, void *y)
+{
+    uintptr_t t;
+    memcpy(&t, x,  sizeof(uintptr_t));
+    memcpy(x,  y,  sizeof(uintptr_t));
+    memcpy(y,  &t, sizeof(uintptr_t));
+}
 
+#if 0
+/// @brief 反向传播
+/// @param pxNet 网络实例
+/// @param dLearningRate 学习率
+/// @param pdTargetOutputArray 目标输出
 void Backward(Network *pxNet, double dLearningRate, double *pdTargetOutputArray)
 {
-    double *pdErrorArray = NULL;
+    Layer *pxCurtLayer = NULL;
+    Layer *pxNextLayer = NULL;
+
+    double *pdCurtErrorArray = NULL;
+    double *pdNextErrorArray = NULL;
     double *pdTargetArray = NULL;
     
     pdTargetArray = pdTargetOutputArray;
 
-    for (int iLayerIndex = pxNet->iLayerArraySize - 1; iLayerIndex >= 0; iLayerIndex--)
+    // 查找网络中节点数最多的层
+    int iMaxNodes = 0;
+    for (int i = 0; i < pxNet->iLayerArraySize; i++) {
+        Layer *pxLayer = pxNet->pxLayerArray + i;
+        if (pxLayer->iNodeArraySize > iMaxNodes) {
+            iMaxNodes = pxLayer->iNodeArraySize;
+        }
+    }
+    // 根据最大节点数分配pdErrorArray
+    pdCurtErrorArray = malloc(iMaxNodes * sizeof(double));
+    pdNextErrorArray = malloc(iMaxNodes * sizeof(double));
+
+    memset(pdCurtErrorArray, 0, iMaxNodes);
+    memset(pdNextErrorArray, 0, iMaxNodes);
+
+    // 现在pdErrorArray有足够的空间存储任何一层的误差项
+    // 可以在反向传播循环中使用这个数组
+    
+    // 最后一层输出层的误差
+    Layer *pxOutputLayer = &pxNet->pxLayerArray[pxNet->iLayerArraySize - 1];
+
+    for (int i = 0; i < pxOutputLayer->iNodeArraySize; i++)
+    {
+        pdCurtErrorArray[i] = pxOutputLayer->pdOutputArray[i] - pdTargetOutputArray[i];
+
+    }
+    
+    for (int iLayerIndex = pxNet->iLayerArraySize - 2; iLayerIndex >= 0; iLayerIndex--)
     {
         /* 从后向前 每一层 */
 
         Layer *pxLayer = pxNet->pxLayerArray + iLayerIndex;
-        pdErrorArray = malloc(sizeof(double) * pxLayer->iNodeArraySize);
+        memset(pdCurtErrorArray, 0, iMaxNodes);
 
+        pdNextErrorArray = NULL;
+
+        /* 计算输出层误差 */
         for (int i = 0; i < pxLayer->iNodeArraySize; i++)
         {
             /* 计算误差 */
-            pdErrorArray[i] = pdTargetArray[i] - pxLayer->pdOutputArray[i];
+            pdCurtErrorArray[i] = pdTargetArray[i] - pxLayer->pdOutputArray[i];
             /* 计算梯度 */
-            pdErrorArray[i] = pdErrorArray[i] * dReLU(pxLayer->pdOutputArray[i]);
+            pdCurtErrorArray[i] = pdCurtErrorArray[i] * dReLU(pxLayer->pdOutputArray[i]);
         }
 
         
@@ -274,17 +325,98 @@ void Backward(Network *pxNet, double dLearningRate, double *pdTargetOutputArray)
             for (int j = 0; j < pxNode->iInputSize; j++)
             {
                 /* 调整权重 */
-                // pxNode->pdWeightArray[j] -= dLearningRate *;
+                if (iLayerIndex > 0)
+                {
+                    pxNode->pdWeightArray[j] -= dLearningRate * pdCurtErrorArray[j] * (pxLayer - 1)->pdOutputArray[j];
+                }else
+                {
+                    pxNode->pdWeightArray[j] -= dLearningRate * pdCurtErrorArray[j] * pxNet->pdInputArray[j];
+                }
             }
 
             /* 调整偏置 */
-            // *pxNode->pdBias -= dLearningRate * ;
+            *pxNode->pdBias -= dLearningRate * pdCurtErrorArray[i];
         }
+
+        /* 交换两个指针的指向 */
+        _SwapPointer(&pdCurtErrorArray, &pdNextErrorArray);
+    }
+    
+
+    free(pdCurtErrorArray);
+    free(pdNextErrorArray);
+
+    #undef _SWAP
+}
+
+#else
+
+/// @brief 反向传播
+/// @param pxNet 网络实例
+/// @param dLearningRate 学习率
+/// @param pdTargetOutputArray 目标输出
+void Backward(Network *pxNet, double dLearningRate, double *pdTargetOutputArray)
+{
+    /*  */
+
+    Layer *pxOutputLayer = pxNet->pxLayerArray + pxNet->iLayerArraySize - 1;
+    
+    double *pdCurtErrorArray = NULL; /* 当前层误差 */
+    double *pdNextErrorArray = NULL; /* 下一层误差 */
+
+    // 查找网络中节点数最多的层
+    int iMaxNodes = 0;
+    for (int i = 0; i < pxNet->iLayerArraySize; i++) {
+        Layer *pxLayer = pxNet->pxLayerArray + i;
+        if (pxLayer->iNodeArraySize > iMaxNodes) {
+            iMaxNodes = pxLayer->iNodeArraySize;
+        }
+    }
+    // 根据最大节点数分配pdErrorArray
+    pdCurtErrorArray = malloc(iMaxNodes * sizeof(double));
+    // pdNextErrorArray = malloc(iMaxNodes * sizeof(double));
+
+    memset(pdCurtErrorArray, 0, iMaxNodes);
+    // memset(pdNextErrorArray, 0, iMaxNodes);
+
+
+
+    /* 从最后一层开始 */
+    for (int i = pxNet->iLayerArraySize - 1; i >= 0; i++)
+    {
+        Layer *pxCurtLayer = pxNet->pxLayerArray + i;
+        /* 输出层 */
+        if (pxCurtLayer == pxOutputLayer)
+        {
+            /* 计算输出层误差 */
+            for (int j = 0; j < pxCurtLayer->iNodeArraySize; j++)
+            {
+                pdCurtErrorArray[j] = pxCurtLayer->pdOutputArray[j] - pdTargetOutputArray[j];
+            }
+            
+            /* 更新参数 */
+
+            for (int i = 0; i < pxCurtLayer->iNodeArraySize; i++)
+            {
+                Node *pxCurtNode = pxCurtLayer->pxNodeArray + i;
+            
+                /* 权重 */
+                
+                /* 偏置 */        
+                *pxCurtNode->pdBias -= dLearningRate * pdCurtErrorArray[i];
+            }
+            
+
+            continue;
+        }
+
+        /* 隐藏层 */
 
     }
     
 }
 
+#endif
 
 #define LAYER_NUM 3
 
