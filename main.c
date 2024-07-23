@@ -408,7 +408,7 @@ void Backward(Network *pxNet, double dLearningRate, double *pdTargetOutputArray)
                 dLoss -= log(pxCurtLayer->pdOutputArray[j]) * pdTargetOutputArray[j];
             }
             
-            printf("Loss:%.5f", dLoss);
+            printf("Loss:%.5f\n", dLoss);
 
             /* 更新输出层参数 */
             for (int j = 0; j < pxCurtLayer->iNodeArraySize; j++)
@@ -508,28 +508,36 @@ int main()
     /* 创建网络 */
     Network *pxNet = CreateAndInit(INPUT_SIZE, &xNetTable);
 
-    /* 前向传播 */
-    Forward(pxNet, adInput);
-    
-    /* 输出结果 */
+    double adLabel[10] = {1.0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
-    double dSum = 0;
+    /* 输出结果 */
     double dMax = 0;
     int iMaxIndex = 0;
-    for (int i = 0; i < pxNet->iOutputArraySize; i++)
+
+    for (int i = 0; i < 10; i++)
     {
-        printf("%f, ", pxNet->pdOutputArray[i]);
+        printf("Train: %d, ", i);
+        /* 前向传播 */
+        Forward(pxNet, adInput);
 
-        if (pxNet->pdOutputArray[i] > dMax)
+        /* 输出结果向量 */
+        for (int j = 0; j < pxNet->iOutputArraySize; j++)
         {
-            dMax = pxNet->pdOutputArray[i];
-            iMaxIndex = i;
+            printf("%f, ", pxNet->pdOutputArray[j]);
+            if (pxNet->pdOutputArray[j] > dMax) {
+                dMax = pxNet->pdOutputArray[j];
+                iMaxIndex = j;
+            }
         }
-        
-        dSum += pxNet->pdOutputArray[i];
-    }
-    printf("dSum = %f, Max: %f, Index: %d\n", dSum, dMax, iMaxIndex);
+        printf(" Index: %d, Max: %f, ", iMaxIndex, dMax);
 
+        /* 后向传播 */
+        Backward(pxNet, 0.03, adLabel);
+
+        printf("\n");
+
+    }
+    
     return 0;
 }
 
