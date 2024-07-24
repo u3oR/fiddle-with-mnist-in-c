@@ -10,17 +10,18 @@
 #endif
 
 
-typedef double (*ActivationFunction)(double *pdArray, int iArrayLen, int iNodeIndex);
+typedef double (*ActivationFunction)(double *pdCurtLayerZOutputArray, int iArrayLen, int iCurtNodeIndex);
 
 typedef struct _Node
 {
-    int iInputSize;
-    double *pdInputArray;
-    double *pdWeightArray;
+    int     iInputSize;     /* 输入大小 */
+    double *pdInputArray;   /* 输入 */
 
-    double *pdBias;
-    double *pdZOutput;
-    double *pdOutput;
+    double *pdWeightArray;  /* 权重 */
+    double *pdBias;         /* 偏置 */
+
+    double *pdZOutput;      /* 未激活输出 */
+    double *pdOutput;       /* 激活输出 */
 } Node;
 
 
@@ -30,8 +31,8 @@ typedef struct _Layer
     int iNodeArraySize;     /* 该层的节点个数 */
 
     double *pdInputArray;   /* 输入层 */
-    double *pdZOutputArray; /* 未经过激活函数输出 即 wx+b */
-    double *pdOutputArray;  /* 经过激活函数的输出 */
+    double *pdZOutputArray; /* 未激活输出 即 wx+b */
+    double *pdOutputArray;  /* 激活的输出 */
     
     int cLayerType;
     ActivationFunction ActiveFunc;
@@ -40,42 +41,32 @@ typedef struct _Layer
 } Layer;
 
 
-
-typedef struct _NetworkManager
-{
-    void **aAllMallocMemberArray;     // 所有动态子成员的内存地址
-    int iAllMallocMemberArraySize;    // 所有动态子成员的个数
-    long long llAllMallocMemorySize;  // 整个网络占据的动态空间大小
-} NetworkManager;
-
-
 typedef struct _Network
 {
-    double *pdInputArray;
-    int iInputArraySize;
-    double *pdOutputArray;
-    int iOutputArraySize;
+    double *pdInputArray;       /* 网络输入 */
+    int     iInputArraySize;    /* 网络输入大小 */
+    double *pdOutputArray;      /* 网络输出 */
+    int     iOutputArraySize;   /* 网络输出大小 */
 
-    Layer *pxLayerArray;
-    int iLayerArraySize;
-
-    NetworkManager xNetManager;
+    Layer * pxLayerArray;       /* 网络层 */
+    int     iLayerArraySize;    /* 网络层个数 */
 } Network;
 
 
+/// @brief 层描述表
 typedef struct _LayerDeclareTable
 {
-    const char *sLayerType;
-    int iNodeNumber;
-    const char *sActivateFunType;
+    const char *sLayerType;         /* 当前层的类型 */
+    int         iNodeNumber;        /* 当前层的节点数 */
+    const char *sActivateFunType;   /* 当前层的激活函数类型 */
 } LayerDeclareTable;
 
+/// @brief 网络描述表
 typedef struct _NetDeclareTable
 {
-    int iLayerNumber;
-    LayerDeclareTable *pxLayerTable;
+    int                 iLayerNumber;   /* 网络层数 */
+    LayerDeclareTable * pxLayerTable;   /* 网络层描述表 */
 } NetDeclareTable;
-
 
 
 double Sigmoid(double *pInput, int iInputLen, int iNodeIndex)
@@ -210,11 +201,25 @@ Network *CreateAndInit(int iInputSize, NetDeclareTable *pxTable)
 
 void Release(Network *pxNet)
 {
-    for (int i = 0; i < pxNet->xNetManager.iAllMallocMemberArraySize; i++)
+    /* 每一层 */
+    for (int i = 0; i < pxNet->iLayerArraySize; i++)
     {
-        free(pxNet->xNetManager.aAllMallocMemberArray[i]);
-    }
+        Layer *pxCurtLayer = pxNet->pxLayerArray + i;
 
+        for (int j = 0; j < pxCurtLayer->iNodeArraySize; j++)
+        {
+            Node *pxCurtNode = pxCurtLayer->pxNodeArray + j;
+            /* 节点权重/偏置 */
+            free(pxCurtNode->pdWeightArray);
+        }
+        
+        free(pxCurtLayer->pxNodeArray);
+        free(pxCurtLayer->pdZOutputArray);
+        free(pxCurtLayer->pdOutputArray);
+    }
+    
+    free(pxNet->pxLayerArray);
+    free(pxNet->pdInputArray);
     free(pxNet);
 }
 
@@ -466,6 +471,8 @@ int main()
         printf("\n");
 
     }
+
+    Release(pxNet);
     
     return 0;
 }
