@@ -85,6 +85,11 @@ double Sigmoid(double *pInput, int iInputLen, int iNodeIndex)
     return 1.0f / (1.0f + exp(0.0f-*pInput));
 }
 
+double dSigmoid(double x)
+{
+    return (Sigmoid(&x, 0, 0) * (1 - Sigmoid(&x, 0, 0)));
+}
+
 double ReLU(double *pInput, int iInputLen, int iNodeIndex)
 {
     __UNUESD(iInputLen);
@@ -96,6 +101,7 @@ double dReLU(double dInput)
 {
     return (dInput > 0) ? (1) : (0);
 }
+
 
 double Softmax(double *pdArray, int iArrayLen, int iNodeIndex)
 {
@@ -134,6 +140,9 @@ Network *CreateAndInit(int iInputSize, NetDeclareTable *pxTable)
         pxLayerTable = pxTable->pxLayerTable + i;
         
         /* 输入层(连接上一层输出) */
+
+        // pxLayer->pdInputArray = (i == 0) ? (pxNet->pdInputArray) : ((pxLayer - 1)->pdOutputArray);
+
         if (i == 0) // 第一层输入新建，其他层输入连接上一层的输出
         {
             pxLayer->pdInputArray   = pxNet->pdInputArray;
@@ -141,9 +150,11 @@ Network *CreateAndInit(int iInputSize, NetDeclareTable *pxTable)
         {
             pxLayer->pdInputArray   = (pxLayer - 1)->pdOutputArray;
         }
+
         /* 输出层 */
         pxLayer->pdZOutputArray     = malloc(sizeof(double) * pxLayerTable->iNodeNumber); /* 未激活输出层 */
         pxLayer->pdOutputArray      = malloc(sizeof(double) * pxLayerTable->iNodeNumber); /* 已激活输出层 */
+        
         /* 神经元 */
         pxLayer->iNodeArraySize     = pxLayerTable->iNodeNumber;
         pxLayer->pxNodeArray        = malloc(sizeof(Node) * pxLayer->iNodeArraySize);
@@ -157,13 +168,13 @@ Network *CreateAndInit(int iInputSize, NetDeclareTable *pxTable)
             pxNode->pdInputArray    = pxLayer->pdInputArray;
             pxNode->pdZOutput       = pxLayer->pdZOutputArray + j;
             pxNode->pdOutput        = pxLayer->pdOutputArray  + j;
-            pxNode->pdWeightArray   = malloc(sizeof(double) * pxNode->iInputSize);
-            pxNode->pdBias          = malloc(sizeof(double));
+            pxNode->pdWeightArray   = malloc(sizeof(double) * (pxNode->iInputSize + 1));
+            pxNode->pdBias          = pxNode->pdWeightArray + pxNode->iInputSize;
 
             /* 为权重设定随机初始值 */
             for (int k = 0; k < pxNode->iInputSize; k++)
             {
-                *(pxNode->pdWeightArray + k) = 1.0f * rand() / RAND_MAX;
+                pxNode->pdWeightArray[k] = 1.0f * rand() / RAND_MAX;
             }
             /* 为偏置设置随机初始值 */
             pxNode->pdBias[0] = 1.0f * rand() / RAND_MAX;
@@ -252,111 +263,21 @@ void Forward(Network *pxNet, double *pdInputArray)
 /// @brief 交换两个指针的地址
 /// @param x 指针1的地址
 /// @param y 指针2的地址
-static void _SwapPointer(void *x, void *y)
+static inline void _SwapPointer(void *x, void *y)
 {
-    uintptr_t t;
-    memcpy(&t, x,  sizeof(uintptr_t));
-    memcpy(x,  y,  sizeof(uintptr_t));
-    memcpy(y,  &t, sizeof(uintptr_t));
+    // uintptr_t t;
+    // memcpy(&t, x,  sizeof(uintptr_t));
+    // memcpy(x,  y,  sizeof(uintptr_t));
+    // memcpy(y,  &t, sizeof(uintptr_t));
+
+    uintptr_t *px = x;
+    uintptr_t *py = y;
+
+    *px = *px ^ *py;
+    *py = *px ^ *py;
+    *px = *px ^ *py;
 }
 
-#if 0
-/// @brief 反向传播
-/// @param pxNet 网络实例
-/// @param dLearningRate 学习率
-/// @param pdTargetOutputArray 目标输出
-void Backward(Network *pxNet, double dLearningRate, double *pdTargetOutputArray)
-{
-    Layer *pxCurtLayer = NULL;
-    Layer *pxNextLayer = NULL;
-
-    double *pdCurtErrorArray = NULL;
-    double *pdNextErrorArray = NULL;
-    double *pdTargetArray = NULL;
-    
-    pdTargetArray = pdTargetOutputArray;
-
-    // 查找网络中节点数最多的层
-    int iMaxNodes = 0;
-    for (int i = 0; i < pxNet->iLayerArraySize; i++) {
-        Layer *pxLayer = pxNet->pxLayerArray + i;
-        if (pxLayer->iNodeArraySize > iMaxNodes) {
-            iMaxNodes = pxLayer->iNodeArraySize;
-        }
-    }
-    // 根据最大节点数分配pdErrorArray
-    pdCurtErrorArray = malloc(iMaxNodes * sizeof(double));
-    pdNextErrorArray = malloc(iMaxNodes * sizeof(double));
-
-    memset(pdCurtErrorArray, 0, iMaxNodes);
-    memset(pdNextErrorArray, 0, iMaxNodes);
-
-    // 现在pdErrorArray有足够的空间存储任何一层的误差项
-    // 可以在反向传播循环中使用这个数组
-    
-    // 最后一层输出层的误差
-    Layer *pxOutputLayer = &pxNet->pxLayerArray[pxNet->iLayerArraySize - 1];
-
-    for (int i = 0; i < pxOutputLayer->iNodeArraySize; i++)
-    {
-        pdCurtErrorArray[i] = pxOutputLayer->pdOutputArray[i] - pdTargetOutputArray[i];
-
-    }
-    
-    for (int iLayerIndex = pxNet->iLayerArraySize - 2; iLayerIndex >= 0; iLayerIndex--)
-    {
-        /* 从后向前 每一层 */
-
-        Layer *pxLayer = pxNet->pxLayerArray + iLayerIndex;
-        memset(pdCurtErrorArray, 0, iMaxNodes);
-
-        pdNextErrorArray = NULL;
-
-        /* 计算输出层误差 */
-        for (int i = 0; i < pxLayer->iNodeArraySize; i++)
-        {
-            /* 计算误差 */
-            pdCurtErrorArray[i] = pdTargetArray[i] - pxLayer->pdOutputArray[i];
-            /* 计算梯度 */
-            pdCurtErrorArray[i] = pdCurtErrorArray[i] * dReLU(pxLayer->pdOutputArray[i]);
-        }
-
-        
-        for (int i = 0; i < pxLayer->iNodeArraySize; i++)
-        {
-            /* 每个节点 */
-
-            Node *pxNode = &(pxLayer->pxNodeArray[i]);
-
-            /*  */
-            for (int j = 0; j < pxNode->iInputSize; j++)
-            {
-                /* 调整权重 */
-                if (iLayerIndex > 0)
-                {
-                    pxNode->pdWeightArray[j] -= dLearningRate * pdCurtErrorArray[j] * (pxLayer - 1)->pdOutputArray[j];
-                }else
-                {
-                    pxNode->pdWeightArray[j] -= dLearningRate * pdCurtErrorArray[j] * pxNet->pdInputArray[j];
-                }
-            }
-
-            /* 调整偏置 */
-            *pxNode->pdBias -= dLearningRate * pdCurtErrorArray[i];
-        }
-
-        /* 交换两个指针的指向 */
-        _SwapPointer(&pdCurtErrorArray, &pdNextErrorArray);
-    }
-    
-
-    free(pdCurtErrorArray);
-    free(pdNextErrorArray);
-
-    #undef _SWAP
-}
-
-#else
 
 /// @brief 反向传播
 /// @param pxNet 网络实例
@@ -373,9 +294,12 @@ void Backward(Network *pxNet, double dLearningRate, double *pdTargetOutputArray)
 
     // 查找网络中节点数最多的层
     int iMaxNodes = 0;
-    for (int i = 0; i < pxNet->iLayerArraySize; i++) {
+    for (int i = 0; i < pxNet->iLayerArraySize; i++) 
+    {
         Layer *pxLayer = pxNet->pxLayerArray + i;
-        if (pxLayer->iNodeArraySize > iMaxNodes) {
+        
+        if (pxLayer->iNodeArraySize > iMaxNodes) 
+        {
             iMaxNodes = pxLayer->iNodeArraySize;
         }
     }
@@ -451,6 +375,7 @@ void Backward(Network *pxNet, double dLearningRate, double *pdTargetOutputArray)
                     pdNextErrorArray[k] * pxNextLayer->pxNodeArray[k].pdWeightArray[j];
             }
             
+            // pdCurtErrorArray[j] *= dSigmoid(pxCurtNode->pdZOutput[0]);
             pdCurtErrorArray[j] *= dReLU(pxCurtNode->pdZOutput[0]);
         }
 
@@ -482,17 +407,21 @@ void Backward(Network *pxNet, double dLearningRate, double *pdTargetOutputArray)
     }
 }
 
-#endif
 
-#define LAYER_NUM 3
+
+
+#define INPUT_SIZE (784)
+#define LAYER_NUM  (5)
 
 LayerDeclareTable axLayerTable[LAYER_NUM] = {
+    {.sLayerType = "Dense", .iNodeNumber = 128, .sActivateFunType = "Sigmoid"},
+    {.sLayerType = "Dense", .iNodeNumber = 256, .sActivateFunType = "Sigmoid"},
     {.sLayerType = "Dense", .iNodeNumber = 128, .sActivateFunType = "Sigmoid"},
     {.sLayerType = "Dense", .iNodeNumber =  64, .sActivateFunType = "Sigmoid"},
     {.sLayerType = "Dense", .iNodeNumber =  10, .sActivateFunType = "Softmax"}
 };
 
-#define INPUT_SIZE (784)
+
 double adInput[INPUT_SIZE] = {0};
 
 int main()
@@ -508,13 +437,13 @@ int main()
     /* 创建网络 */
     Network *pxNet = CreateAndInit(INPUT_SIZE, &xNetTable);
 
-    double adLabel[10] = {1.0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    double adLabel[10] = {0, 0, 0, 0, 0, 0, 0, 0, 1, 0};
 
     /* 输出结果 */
     double dMax = 0;
     int iMaxIndex = 0;
 
-    for (int i = 0; i < 10; i++)
+    for (int i = 0; i < 20; i++)
     {
         printf("Train: %d, ", i);
         /* 前向传播 */
@@ -529,10 +458,10 @@ int main()
                 iMaxIndex = j;
             }
         }
-        printf(" Index: %d, Max: %f, ", iMaxIndex, dMax);
+        printf("|| Index: %d, Max: %f, ", iMaxIndex, dMax);
 
         /* 后向传播 */
-        Backward(pxNet, 0.03, adLabel);
+        Backward(pxNet, 0.05, adLabel);
 
         printf("\n");
 
