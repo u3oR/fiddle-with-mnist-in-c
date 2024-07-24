@@ -410,6 +410,9 @@ void Backward(Network *pxNet, double dLearningRate, double *pdTargetOutputArray)
         }
 
     }
+
+    free(pdCurtErrorArray);
+    free(pdNextErrorArray);
 }
 
 
