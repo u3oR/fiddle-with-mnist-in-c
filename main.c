@@ -5,6 +5,8 @@
 #include <math.h>
 #include <time.h>
 
+#include "mnist.h"
+
 #ifndef __UNUESD
 #define __UNUESD(x) (void)(x)
 #endif
@@ -434,6 +436,15 @@ double adInput[INPUT_SIZE] = {0};
 
 int main()
 {
+    MnistData tMnist = MNIST_DATA_INITIALIZER;
+    
+    if(GetMnistData(&tMnist) != 0)
+    {
+        printf("Get error when read dataset file.\n");
+        exit(1);
+    }
+
+    /* ***************************** */
     srand(time(NULL));
 
     /* 网络结构描述 */
@@ -445,34 +456,40 @@ int main()
     /* 创建网络 */
     Network *pxNet = CreateAndInit(INPUT_SIZE, &xNetTable);
 
-    double adLabel[10] = {0, 0, 0, 0, 0, 0, 0, 0, 1, 0};
-
     /* 输出结果 */
-    double dMax = 0;
-    int iMaxIndex = 0;
+    // double dMax = 0;
+    // int iMaxIndex = 0;
 
-    for (int i = 0; i < 20; i++)
+    for (int i = 0; i < tMnist.iTrainNum; i++)
     {
         printf("Train: %d, ", i);
-        /* 前向传播 */
-        Forward(pxNet, adInput);
 
-        /* 输出结果向量 */
-        for (int j = 0; j < pxNet->iOutputArraySize; j++)
-        {
-            printf("%f, ", pxNet->pdOutputArray[j]);
-            if (pxNet->pdOutputArray[j] > dMax) {
-                dMax = pxNet->pdOutputArray[j];
-                iMaxIndex = j;
-            }
-        }
-        printf("|| Index: %d, Max: %f, ", iMaxIndex, dMax);
+        /* 前向传播 */
+        Forward(pxNet, tMnist.ppdTrainImages[i]);
+
+        // /* 输出结果向量 */
+        // for (int j = 0; j < pxNet->iOutputArraySize; j++)
+        // {
+        //     printf("%f, ", pxNet->pdOutputArray[j]);
+        //     if (pxNet->pdOutputArray[j] > dMax) {
+        //         dMax = pxNet->pdOutputArray[j];
+        //         iMaxIndex = j;
+        //     }
+        // }
+        // printf("|| Index: %d, Max: %f, ", iMaxIndex, dMax);
 
         /* 后向传播 */
-        Backward(pxNet, 0.05, adLabel);
+        Backward(pxNet, 0.05, tMnist.ppdTrainLabels[i]);
 
         printf("\n");
 
+    }
+
+    for (int i = 0; i < tMnist.iTestNum; i++)
+    {
+        printf("Test: %d, ", i);
+
+        Forward(pxNet, tMnist.ppdTestImages[i]);
     }
 
     Release(pxNet);
