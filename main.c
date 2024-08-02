@@ -487,7 +487,7 @@ int main()
 
     for (int i = 0; i < tMnist.iTestNum; i++)
     {
-        printf("Test: %d, ", i);
+        printf("Test: %d, \n", i);
 
         Forward(pxNet, tMnist.ppdTestImages[i]);
     }

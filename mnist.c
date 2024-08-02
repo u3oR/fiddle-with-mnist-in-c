@@ -30,10 +30,15 @@ static inline void Read4ByteBig(uint32_t *iRet, FILE *pFile)
 
 static double **ReadImages(const char *filename)
 {
-    FILE *pFile = fopen(filename, "r");
+    FILE *pFile = fopen(filename, "r+");
     
     /* 文件未打开 */
-    if (pFile == NULL) return NULL;
+    if (pFile == NULL) 
+    {
+        perror("fopen()->");
+        exit(1);
+        return NULL;
+    }
 
     /*  */
     double **ppdData = NULL;
@@ -57,18 +62,25 @@ static double **ReadImages(const char *filename)
     Read4ByteBig(&u32ImageH  , pFile);
 
     ppdData = malloc(sizeof(double *) * u32ImageNum);
+    memset(ppdData, 0, sizeof(double *) * u32ImageNum);
 
     for (uint32_t i = 0; i < u32ImageNum; i++)
     {
         ppdData[i] = malloc(sizeof(double) * u32ImageW * u32ImageH);
         
+        if (ppdData[i] == NULL)
+        {
+            perror("malloc()->");
+            exit(1);
+        }
+        
         uint8_t u8Pixel;
-        for (uint32_t j = 0; j < u32ImageW * u32ImageH; i++)
+        for (uint32_t j = 0; j < u32ImageW * u32ImageH; j++)
         {
             /* 读取一个字节 */
             fread(&u8Pixel, sizeof(uint8_t), 1, pFile);
             /* 将字节转化成浮点值 */
-            *(ppdData[i] + j) = 1.0f * u8Pixel / UINT8_MAX;
+            ppdData[i][j] = 1.0f * u8Pixel / UINT8_MAX;
         }
     }
     
@@ -172,7 +184,7 @@ int main()
     // FILE *pFile = fopen(TRAIN_LABELS_FILE_PATH, "r");
     // FILE *pFile = fopen(TRAIN_DATASET_FILE_PATH, "r");
     // FILE *pFile = fopen(TEST_DATASET_FILE_PATH, "r");
-    FILE *pFile = fopen(TEST_LABELS_FILE_PATH, "r");
+    FILE *pFile = fopen(TEST_LABELS_FILE_PATH, "w");
 
     uint32_t u32Magic = 0;
     uint32_t u32ImageNum = 0;

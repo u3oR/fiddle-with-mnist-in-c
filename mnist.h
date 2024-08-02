@@ -1,10 +1,10 @@
 #ifndef __MNIST_H
 #define __MNIST_H
 
-#define TRAIN_DATASET_FILE_PATH "./MNIST_ORG/train-images.idx3-ubyte"
-#define TRAIN_LABELS_FILE_PATH  "./MNIST_ORG/train-labels.idx1-ubyte"
-#define TEST_DATASET_FILE_PATH  "./MNIST_ORG/t10k-images.idx3-ubyte"
-#define TEST_LABELS_FILE_PATH   "./MNIST_ORG/t10k-labels.idx1-ubyte"
+#define TRAIN_DATASET_FILE_PATH "MNIST_ORG/train-images.idx3-ubyte"
+#define TRAIN_LABELS_FILE_PATH  "MNIST_ORG/train-labels.idx1-ubyte"
+#define TEST_DATASET_FILE_PATH  "MNIST_ORG/t10k-images.idx3-ubyte"
+#define TEST_LABELS_FILE_PATH   "MNIST_ORG/t10k-labels.idx1-ubyte"
 
 #define IMAGE_W         28
 #define IMAGE_H         28

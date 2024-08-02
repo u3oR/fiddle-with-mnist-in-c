@@ -6,6 +6,7 @@ CC = gcc
 CFLAGS :=  
 CFLAGS := $(CFLAGS) -Wall
 CFLAGS := $(CFLAGS) -Wextra
+CFLAGS := $(CFLAGS) -g
 
 LDFLAGS := 
 LDFLAGS := $(LDFLAGS) -lm
