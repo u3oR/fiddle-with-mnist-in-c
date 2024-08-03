@@ -11,8 +11,31 @@
 #define __UNUESD(x) (void)(x)
 #endif
 
+static uint32_t GetNameId(const char *strName)
+{
 
-typedef double (*ActivationFunction)(double *pdCurtLayerZOutputArray, int iArrayLen, int iCurtNodeIndex);
+}
+
+enum NAME_ID{
+    ID_RELU         = 0x00UL,
+    ID_RELU_D,
+    ID_SIGMOID,
+    ID_SIGMOID_D,
+    ID_SOFTMAX,
+};
+
+#define IsStringSame(s1, s2) !strcmp(s1, s2)
+
+/// @brief 
+/// @param pdCurtLayerOutputArray   通过激活函数后的输出
+/// @param pdCurtLayerZOutputArray  当前层的原始输出
+/// @param iArrayLen                原始输出层的大小
+/// @return 
+typedef void (*ActivationFunction)(double *pdCurtLayerOutputArray, const double *pdCurtLayerZOutputArray, int iArrayLen);
+
+
+typedef void (*dActivationFunction)(double *pdCurtLayerOutputArray, const double *pdCurtLayerZOutputArray, int iArrayLen);
+
 
 typedef struct _Node
 {
@@ -38,6 +61,7 @@ typedef struct _Layer
     
     int cLayerType;
     ActivationFunction ActiveFunc;
+    dActivationFunction _dActiveFunc; /* 取决于 ActiveFunc */
     // void (*ForWard)(struct _Layer *pxLayer, double *pdInputArray);
     // void (*Backward)(struct _Layer *pxLayer, double *pOutputGradient);
 } Layer;
@@ -52,6 +76,8 @@ typedef struct _Network
 
     Layer * pxLayerArray;       /* 网络层 */
     int     iLayerArraySize;    /* 网络层个数 */
+
+    int     _iMaxNodes;
 } Network;
 
 
@@ -70,43 +96,94 @@ typedef struct _NetDeclareTable
     LayerDeclareTable * pxLayerTable;   /* 网络层描述表 */
 } NetDeclareTable;
 
-
-double Sigmoid(double *pInput, int iInputLen, int iNodeIndex)
+void Sigmoid(double *pdCurtLayerOutputArray, const double *pdCurtLayerZOutputArray, int iArrayLen)
 {
-    __UNUESD(iInputLen);
-    __UNUESD(iNodeIndex);
-    return 1.0f / (1.0f + exp(0.0f-*pInput));
+    for (int i = 0; i < iArrayLen; i++)
+    {
+        pdCurtLayerOutputArray[i] = (1.0f / (1.0f + exp(0.0f - pdCurtLayerZOutputArray[i])));
+    }
+
 }
 
-double dSigmoid(double x)
+// double Sigmoid(double *pInput, int iInputLen, int iNodeIndex)
+// {
+//     __UNUESD(iInputLen);
+//     __UNUESD(iNodeIndex);
+//     return (double) (1.0f / (1.0f + exp(0.0f - pInput[0])));
+// }
+
+// double dSigmoid(double *x)
+// {
+//     return (Sigmoid(x, 0, 0) * (1 - Sigmoid(x, 0, 0)));
+// }
+
+void ReLU(double *pdCurtLayerOutputArray, const double *pdCurtLayerZOutputArray, int iArrayLen)
 {
-    return (Sigmoid(&x, 0, 0) * (1 - Sigmoid(&x, 0, 0)));
+    double *pdOutput = pdCurtLayerOutputArray;
+    const double *pdZOutput = pdCurtLayerZOutputArray;
+    
+    for (int i = 0; i < iArrayLen; i++)
+    {
+        pdOutput[i] = (pdZOutput[i] > 0) ? pdZOutput[i] : 0;
+    }
 }
 
-double ReLU(double *pInput, int iInputLen, int iNodeIndex)
-{
-    __UNUESD(iInputLen);
-    __UNUESD(iNodeIndex);
-    return (*pInput > 0) ? *pInput : 0;
-}
+// double ReLU(double *pInput, int iInputLen, int iNodeIndex)
+// {
+//     __UNUESD(iInputLen);
+//     __UNUESD(iNodeIndex);
+//     return (pInput[0] > 0) ? pInput[0] : 0;
+// }
 
 double dReLU(double dInput)
 {
     return (dInput > 0) ? (1) : (0);
 }
 
-
-double Softmax(double *pdArray, int iArrayLen, int iNodeIndex)
+void Softmax(double *pdCurtLayerOutputArray, const double *pdCurtLayerZOutputArray, int iArrayLen)
 {
     double dSum = 0.0f;
 
     for (int i = 0; i < iArrayLen; i++)
     {
-        dSum += exp(pdArray[i]);
+        pdCurtLayerOutputArray[i] = exp(pdCurtLayerZOutputArray[i]);
+        dSum += pdCurtLayerOutputArray[i];
+    }
+
+    for (int i = 0; i < iArrayLen; i++)
+    {
+        pdCurtLayerOutputArray[i] /= dSum;
+    }
+}
+
+static void GetActiveFunc(Layer *pxLayer, const char *sActivateFunType)
+{
+    enum NAME_ID eId = GetNameId(sActivateFunType);
+
+    switch (eId)
+    {
+        case ID_RELU:
+            pxLayer->ActiveFunc   = ReLU;
+            pxLayer->_dActiveFunc = dReLU;
+            break;
+            
+        default:
+            break;
     }
     
-    return exp(pdArray[iNodeIndex]) / dSum;
 }
+
+// double Softmax(double *pdArray, int iArrayLen, int iNodeIndex)
+// {
+//     double dSum = 0.0f;
+
+//     for (int i = 0; i < iArrayLen; i++)
+//     {
+//         dSum += exp(pdArray[i]);
+//     }
+    
+//     return exp(pdArray[iNodeIndex]) / dSum;
+// }
 
 Network *CreateAndInit(int iInputSize, NetDeclareTable *pxTable)
 {
@@ -197,6 +274,22 @@ Network *CreateAndInit(int iInputSize, NetDeclareTable *pxTable)
     pxNet->iOutputArraySize = pxLayerTable->iNodeNumber;
     pxNet->pdOutputArray    = pxLayer->pdOutputArray;
 
+    // 查找网络中节点数最多的层
+    // 在反向传播时需要申请内存，以便计算足够的空间，并且避免频繁计算。
+    int iMaxNodes = 0;
+
+    for (int i = 0; i < pxNet->iLayerArraySize; i++) 
+    {
+        Layer *pxLayer = pxNet->pxLayerArray + i;
+        
+        if (pxLayer->iNodeArraySize > iMaxNodes) 
+        {
+            iMaxNodes = pxLayer->iNodeArraySize;
+        }
+    }
+
+    pxNet->_iMaxNodes = iMaxNodes;
+
     return pxNet;
 }
 
@@ -255,15 +348,17 @@ void Forward(Network *pxNet, double *pdInputArray)
         }
 
         /* 经过激活函数 */
-        for (int iNodeIndex = 0; iNodeIndex < pxLayer->iNodeArraySize; iNodeIndex++)
-        {
-            Node *pxNode = pxLayer->pxNodeArray + iNodeIndex;
-
-            pxNode->pdOutput[0] = 0.0f;
-
-            pxNode->pdOutput[0] = pxLayer->ActiveFunc(pxLayer->pdZOutputArray, pxLayer->iNodeArraySize, iNodeIndex);
-
-        }
+        pxLayer->ActiveFunc(pxLayer->pdOutputArray, 
+                            pxLayer->pdZOutputArray,
+                            pxLayer->iNodeArraySize);
+        
+        // 对每个节点都单独计算激活结果
+        // for (int iNodeIndex = 0; iNodeIndex < pxLayer->iNodeArraySize; iNodeIndex++)
+        // {
+        //     Node *pxNode = pxLayer->pxNodeArray + iNodeIndex;
+        //     pxNode->pdOutput[0] = 0.0f;
+        //     pxNode->pdOutput[0] = pxLayer->ActiveFunc(pxLayer->pdZOutputArray, pxLayer->iNodeArraySize, iNodeIndex);
+        // }
     }
 }
 
@@ -272,11 +367,6 @@ void Forward(Network *pxNet, double *pdInputArray)
 /// @param y 指针2的地址
 static inline void _SwapPointer(void *x, void *y)
 {
-    // uintptr_t t;
-    // memcpy(&t, x,  sizeof(uintptr_t));
-    // memcpy(x,  y,  sizeof(uintptr_t));
-    // memcpy(y,  &t, sizeof(uintptr_t));
-
     uintptr_t *px = x;
     uintptr_t *py = y;
 
@@ -299,24 +389,15 @@ void Backward(Network *pxNet, double dLearningRate, double *pdTargetOutputArray)
     double *pdCurtErrorArray = NULL; /* 当前层误差 */
     double *pdNextErrorArray = NULL; /* 下一层误差 */
 
-    // 查找网络中节点数最多的层
-    int iMaxNodes = 0;
-    for (int i = 0; i < pxNet->iLayerArraySize; i++) 
-    {
-        Layer *pxLayer = pxNet->pxLayerArray + i;
-        
-        if (pxLayer->iNodeArraySize > iMaxNodes) 
-        {
-            iMaxNodes = pxLayer->iNodeArraySize;
-        }
-    }
     // 根据最大节点数分配pdErrorArray
-    pdCurtErrorArray = malloc(iMaxNodes * sizeof(double));
-    pdNextErrorArray = malloc(iMaxNodes * sizeof(double));
+    
+    pdCurtErrorArray = malloc(pxNet->_iMaxNodes * sizeof(double));
+    pdNextErrorArray = malloc(pxNet->_iMaxNodes * sizeof(double));
 
-    memset(pdCurtErrorArray, 0, iMaxNodes);
-    memset(pdNextErrorArray, 0, iMaxNodes);
+    memset(pdCurtErrorArray, 0, pxNet->_iMaxNodes);
+    memset(pdNextErrorArray, 0, pxNet->_iMaxNodes);
 
+    /* ===================================== */
     double dLoss = 0.0f;
 
     /* 从最后一层开始 */
@@ -479,9 +560,9 @@ int main()
         // printf("|| Index: %d, Max: %f, ", iMaxIndex, dMax);
 
         /* 后向传播 */
-        Backward(pxNet, 0.05, tMnist.ppdTrainLabels[i]);
+        Backward(pxNet, 0.08, tMnist.ppdTrainLabels[i]);
 
-        printf("\n");
+        // printf("\n");
 
     }
 
