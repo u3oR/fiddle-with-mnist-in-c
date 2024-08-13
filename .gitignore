@@ -1,7 +1,5 @@
-*
-
-!*.c
-!*.h
-!.git*
-!Makefile
-!README.md
+.vscode/
+network/
+.gdb_history
+*.o
+fiddle

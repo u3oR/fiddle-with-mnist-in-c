@@ -4,5 +4,5 @@ fiddle with mnist in c
 
 测试结果
 
-![](images/Photo20240723221552.png)
+![](README.images/Photo20240723221552.png)
 
