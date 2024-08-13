@@ -1,10 +1,10 @@
 #ifndef __MNIST_H
 #define __MNIST_H
 
-#define TRAIN_DATASET_FILE_PATH "MNIST_ORG/train-images.idx3-ubyte"
-#define TRAIN_LABELS_FILE_PATH  "MNIST_ORG/train-labels.idx1-ubyte"
-#define TEST_DATASET_FILE_PATH  "MNIST_ORG/t10k-images.idx3-ubyte"
-#define TEST_LABELS_FILE_PATH   "MNIST_ORG/t10k-labels.idx1-ubyte"
+#define TRAIN_DATASET_FILE_PATH "/home/rv/fiddle-with-mnist-in-c/MNIST_ORG/train-images.idx3-ubyte"
+#define TRAIN_LABELS_FILE_PATH  "/home/rv/fiddle-with-mnist-in-c/MNIST_ORG/train-labels.idx1-ubyte"
+#define TEST_DATASET_FILE_PATH  "/home/rv/fiddle-with-mnist-in-c/MNIST_ORG/t10k-images.idx3-ubyte"
+#define TEST_LABELS_FILE_PATH   "/home/rv/fiddle-with-mnist-in-c/MNIST_ORG/t10k-labels.idx1-ubyte"
 
 #define IMAGE_W         28
 #define IMAGE_H         28
@@ -16,7 +16,7 @@ typedef struct _MnistData
 {
     const int iImageWidth;
     const int iImageHeight;
-    const int iPixelPerImage;
+    const int iPixelsPerImage;
     const int iTrainNum;
     const int iTestNum;
     double **ppdTrainImages;
@@ -29,7 +29,7 @@ typedef struct _MnistData
 { \
     .iImageWidth    = IMAGE_W,              \
     .iImageHeight   = IMAGE_H,              \
-    .iPixelPerImage = IMAGE_W * IMAGE_H,    \
+    .iPixelsPerImage = IMAGE_W * IMAGE_H,   \
     .iTrainNum      = TRAIN_DATA_NUM,       \
     .iTestNum       = TEST_DATA_NUM,        \
 }

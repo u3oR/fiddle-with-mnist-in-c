@@ -444,7 +444,7 @@ void Backward(Network *pxNet, double dLearningRate, double *pdTargetOutputArray)
                 dLoss -= log(pxCurtLayer->pdOutputArray[j]) * pdTargetOutputArray[j];
             }
             
-            printf("Loss:%.5f\n", dLoss);
+            // printf("Loss:%.5f\n", dLoss);
 
             /* 更新输出层参数 */
             for (int j = 0; j < pxCurtLayer->iNodeArraySize; j++)
@@ -560,9 +560,17 @@ int main()
     /* 创建网络 */
     Network *pxNet = CreateAndInit(INPUT_SIZE, &xNetTable);
 
-    /* 输出结果 */
-    // double dMax = 0;
-    // int iMaxIndex = 0;
+    // int iBatchSize = ;
+    // int iEpoch = 10;
+
+    // for (int i = 0; i < iEpoch; i++)
+    // {
+    //     for (int j = 0; j < iBatchSize; j++)
+    //     {
+            
+    //     }
+        
+    // }
 
     for (int i = 0; i < tMnist.iTrainNum; i++)
     {
@@ -573,49 +581,13 @@ int main()
         /* 前向传播 */
         Forward(pxNet, pdInput);
 
-        // /* 输出结果向量 */
-        // for (int j = 0; j < pxNet->iOutputArraySize; j++)
-        // {
-        //     printf("%f, ", pxNet->pdOutputArray[j]);
-        //     if (pxNet->pdOutputArray[j] > dMax) {
-        //         dMax = pxNet->pdOutputArray[j];
-        //         iMaxIndex = j;
-        //     }
-        // }
-        // printf("|| Index: %d, Max: %f, ", iMaxIndex, dMax);
-
         /* 后向传播 */
         Backward(pxNet, 0.05, pdOutput);
-
-        // printf("\n");
-
+        
+        putchar('>');
     }
 
-#if 0
-    for (int i = 0; i < tMnist.iTestNum; i++)
-    {
-        if (i % 100 == 30)
-        {
-            printf("Test: %d, \n \t", i);
-            /* 计算 */
-            Forward(pxNet, tMnist.ppdTestImages[i]);
 
-            for (int j = 0; j < 10; j++)
-            {
-                printf("%lf, ", tMnist.ppdTestLabels[i][j]);
-            }
-            printf("\n\t");
-            for (int j = 0; j < 10; j++)
-            {
-                printf("%lf, ", pxNet->pdOutputArray[j]);
-            }
-            
-            printf("\n");
-        }
-        
-        
-    }
-#endif
 
     Release(pxNet);
     

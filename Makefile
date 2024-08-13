@@ -19,20 +19,11 @@ $(TARGET): main.o bmp.o mnist.o
 main.o: main.c
 	$(CC) -c $< $(CFLAGS)
 
-bmp.o: bmp.c
+bmp.o: bmp/bmp.c
 	$(CC) -c $< $(CFLAGS)
 	
-mnist.o: mnist.c
+mnist.o: mnist/mnist.c
 	$(CC) -c $< $(CFLAGS)
-
-
-# test bmp.c
-test_bmp: bmp.c
-	$(CC) $< -o $@ $(CFLAGS) -DBMP_TEST
-
-# test mnist.c
-test_mnist: mnist.c
-	$(CC) $< -o $@ $(CFLAGS) -DMNIST_TEST
 
 .PHONY = clean
 clean:

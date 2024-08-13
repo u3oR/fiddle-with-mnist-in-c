@@ -13,7 +13,7 @@ LDFLAGS := $(LDFLAGS) -lm
 
 all: $(TARGET)
 
-$(TARGET): main.o mnist.o
+$(TARGET): main.o mnist.o bmp.o
 	$(CC) $^ -o $@ $(CFLAGS) $(LDFLAGS)
 
 main.o: main.c
@@ -22,6 +22,9 @@ main.o: main.c
 mnist.o: mnist.c
 	$(CC) -c $< $(CFLAGS)
 
+bmp.o: ../bmp/bmp.c
+	$(CC) -c $< $(CFLAGS)
+
 .PHONY = clean
 clean:
-	rm *.o $(TARGET) -rf
+	rm *.o $(TARGET) -rf *.bmp

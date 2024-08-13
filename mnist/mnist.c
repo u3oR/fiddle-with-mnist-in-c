@@ -18,7 +18,7 @@ static void Num2Onehot(int iNum, double adOnehotLabel[10])
 }
 
 
-static inline void Read4ByteBig(uint32_t *iRet, FILE *pFile)
+static inline void _Read4ByteBig(uint32_t *iRet, FILE *pFile)
 {
     uint8_t a = 0;
 
@@ -36,9 +36,9 @@ static double **ReadImages(const char *filename)
     /* 文件未打开 */
     if (pFile == NULL) 
     {
+        printf("Cannot open file %s in Function %s\n", filename, __FUNCTION__);
         perror("fopen()->");
         exit(1);
-        return NULL;
     }
 
     /* 二维 */
@@ -50,7 +50,7 @@ static double **ReadImages(const char *filename)
     uint32_t u32ImageH   = 0;
 
     /* 读取魔术字 */
-    Read4ByteBig(&u32Magic   , pFile);
+    _Read4ByteBig(&u32Magic   , pFile);
 
     /* 检查魔术字 */
     if (u32Magic != MAGIC_IMAGE)
@@ -59,9 +59,9 @@ static double **ReadImages(const char *filename)
     }
 
     /* 读取格式信息 */
-    Read4ByteBig(&u32ImageNum, pFile); /* 图像数量 */
-    Read4ByteBig(&u32ImageW  , pFile); /* 图像宽度 */
-    Read4ByteBig(&u32ImageH  , pFile); /* 图像高度 */
+    _Read4ByteBig(&u32ImageNum, pFile); /* 图像数量 */
+    _Read4ByteBig(&u32ImageW  , pFile); /* 图像宽度 */
+    _Read4ByteBig(&u32ImageH  , pFile); /* 图像高度 */
     
     /* 读取完格式信息，后面文件指针就开始指向数据信息了 */
 
@@ -139,7 +139,7 @@ static double **ReadLabels(const char *filename)
     uint32_t u32LabelNum = 0;
 
     /* 读取魔术字 */
-    Read4ByteBig(&u32Magic, pFile);
+    _Read4ByteBig(&u32Magic, pFile);
 
     /* 检查魔术字 */
     if (u32Magic != MAGIC_LABEL)
@@ -147,7 +147,7 @@ static double **ReadLabels(const char *filename)
         return NULL;
     }
 
-    Read4ByteBig(&u32LabelNum, pFile);
+    _Read4ByteBig(&u32LabelNum, pFile);
 
     /* 标签数组 */
     ppdData = malloc(sizeof(double *) * u32LabelNum);
@@ -184,16 +184,32 @@ int GetMnistData(MnistData *pxMnist)
     /* 读取数据集文件 */
 
     pxMnist->ppdTrainImages = ReadImages(TRAIN_DATASET_FILE_PATH);
-    if (pxMnist->ppdTrainImages == NULL) {goto failed_to_get_data;}
+    if (pxMnist->ppdTrainImages == NULL) 
+    {
+        printf("Failed to Read Train Dataset\n");
+        goto failed_to_get_data;
+    }
 
     pxMnist->ppdTrainLabels = ReadLabels(TRAIN_LABELS_FILE_PATH);
-    if (pxMnist->ppdTrainLabels == NULL) {goto failed_to_get_data;}
+    if (pxMnist->ppdTrainLabels == NULL) 
+    {
+        printf("Failed to Read Train Labels\n");
+        goto failed_to_get_data;
+    }
 
     pxMnist->ppdTestImages  = ReadImages(TEST_DATASET_FILE_PATH);
-    if (pxMnist->ppdTestImages == NULL ) {goto failed_to_get_data;}
+    if (pxMnist->ppdTestImages == NULL) 
+    {
+        printf("Failed to Read Test Dataset\n");
+        goto failed_to_get_data;
+    }
 
-    pxMnist->ppdTestLabels  = ReadImages(TEST_LABELS_FILE_PATH); 
-    if (pxMnist->ppdTestLabels == NULL ) {goto failed_to_get_data;}
+    pxMnist->ppdTestLabels  = ReadLabels(TEST_LABELS_FILE_PATH); 
+    if (pxMnist->ppdTestLabels == NULL) 
+    {
+        printf("Failed to Read Test Labels\n");
+        goto failed_to_get_data;
+    }
     
     return 0;
 
