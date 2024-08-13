@@ -11,29 +11,12 @@
 #define __UNUESD(x) (void)(x)
 #endif
 
-static uint32_t GetNameId(const char *strName)
-{
-    (void)strName;
-    return 0;   
-}
-
-enum NAME_ID{
-    ID_RELU         = 0x00UL,
-    ID_RELU_D,
-    ID_SIGMOID,
-    ID_SIGMOID_D,
-    ID_SOFTMAX,
-};
-
-#define IsStringSame(s1, s2) !strcmp(s1, s2)
-
 /// @brief 
 /// @param pdCurtLayerOutputArray   通过激活函数后的输出
 /// @param pdCurtLayerZOutputArray  当前层的原始输出
 /// @param iArrayLen                原始输出层的大小
 /// @return 
-typedef void (*ActivationFunction)(double *pdCurtLayerOutputArray, const double *pdCurtLayerZOutputArray, int iArrayLen);
-
+typedef void (*ActivationFunction) (double *pdCurtLayerOutputArray, const double *pdCurtLayerZOutputArray, int iArrayLen);
 
 typedef void (*dActivationFunction)(double *pdCurtLayerOutputArray, const double *pdCurtLayerZOutputArray, int iArrayLen);
 
@@ -129,18 +112,6 @@ void Sigmoid(double *pdCurtLayerOutputArray, const double *pdCurtLayerZOutputArr
 
 }
 
-// double Sigmoid(double *pInput, int iInputLen, int iNodeIndex)
-// {
-//     __UNUESD(iInputLen);
-//     __UNUESD(iNodeIndex);
-//     return (double) (1.0f / (1.0f + exp(0.0f - pInput[0])));
-// }
-
-// double dSigmoid(double *x)
-// {
-//     return (Sigmoid(x, 0, 0) * (1 - Sigmoid(x, 0, 0)));
-// }
-
 void ReLU(double *pdCurtLayerOutputArray, const double *pdCurtLayerZOutputArray, int iArrayLen)
 {
     double *pdOutput = pdCurtLayerOutputArray;
@@ -151,13 +122,6 @@ void ReLU(double *pdCurtLayerOutputArray, const double *pdCurtLayerZOutputArray,
         pdOutput[i] = (pdZOutput[i] > 0) ? pdZOutput[i] : 0;
     }
 }
-
-// double ReLU(double *pInput, int iInputLen, int iNodeIndex)
-// {
-//     __UNUESD(iInputLen);
-//     __UNUESD(iNodeIndex);
-//     return (pInput[0] > 0) ? pInput[0] : 0;
-// }
 
 double dReLU(double dInput)
 {
@@ -179,35 +143,6 @@ void Softmax(double *pdCurtLayerOutputArray, const double *pdCurtLayerZOutputArr
         pdCurtLayerOutputArray[i] /= dSum;
     }
 }
-
-static void GetActiveFunc(Layer *pxLayer, const char *sActivateFunType)
-{
-    enum NAME_ID eId = GetNameId(sActivateFunType);
-
-    switch (eId)
-    {
-        case ID_RELU:
-            pxLayer->ActiveFunc   = ReLU;
-            // pxLayer->_dActiveFunc = dReLU;
-            break;
-            
-        default:
-            break;
-    }
-    
-}
-
-// double Softmax(double *pdArray, int iArrayLen, int iNodeIndex)
-// {
-//     double dSum = 0.0f;
-
-//     for (int i = 0; i < iArrayLen; i++)
-//     {
-//         dSum += exp(pdArray[i]);
-//     }
-    
-//     return exp(pdArray[iNodeIndex]) / dSum;
-// }
 
 Network *CreateAndInit(int iInputSize, NetDeclareTable *pxTable)
 {
@@ -523,7 +458,7 @@ void Backward(Network *pxNet, double dLearningRate, double *pdTargetOutputArray)
 }
 
 
-
+/* =============================================================================== */
 
 #define INPUT_SIZE (784)
 #define LAYER_NUM  (5)
@@ -535,9 +470,6 @@ LayerDeclareTable axLayerTable[LAYER_NUM] = {
     {.sLayerType = "Dense", .iNodeNumber =  64, .sActivateFunType = "Sigmoid"},
     {.sLayerType = "Dense", .iNodeNumber =  10, .sActivateFunType = "Softmax"}
 };
-
-
-double adInput[INPUT_SIZE] = {0};
 
 int main()
 {
@@ -560,23 +492,26 @@ int main()
     /* 创建网络 */
     Network *pxNet = CreateAndInit(INPUT_SIZE, &xNetTable);
 
-    // int iBatchSize = ;
     // int iEpoch = 10;
 
+    // int iBatchSize = 300;
+    
     // for (int i = 0; i < iEpoch; i++)
     // {
     //     for (int j = 0; j < iBatchSize; j++)
     //     {
             
     //     }
-        
     // }
+
+    double *pdInput;
+    double *pdOutput;
 
     for (int i = 0; i < tMnist.iTrainNum; i++)
     {
         // printf("Train: %d, ", i);
-        double *pdInput  = tMnist.ppdTrainImages[i];
-        double *pdOutput = tMnist.ppdTrainLabels[i];
+        pdInput  = tMnist.ppdTrainImages[i];
+        pdOutput = tMnist.ppdTrainLabels[i];
 
         /* 前向传播 */
         Forward(pxNet, pdInput);
@@ -584,7 +519,7 @@ int main()
         /* 后向传播 */
         Backward(pxNet, 0.05, pdOutput);
         
-        putchar('>');
+        putchar(i % 100 == 0 ? '\n' : '/');
     }
 
 
