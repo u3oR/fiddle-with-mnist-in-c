@@ -5,7 +5,7 @@
 #include <math.h>
 #include <time.h>
 
-#include "mnist.h"
+#include "mnist/mnist.h"
 
 #ifndef __UNUESD
 #define __UNUESD(x) (void)(x)
@@ -13,7 +13,8 @@
 
 static uint32_t GetNameId(const char *strName)
 {
-
+    (void)strName;
+    return 0;   
 }
 
 enum NAME_ID{
@@ -62,10 +63,33 @@ typedef struct _Layer
     int cLayerType;
     ActivationFunction ActiveFunc;
     dActivationFunction _dActiveFunc; /* 取决于 ActiveFunc */
-    // void (*ForWard)(struct _Layer *pxLayer, double *pdInputArray);
+    void (*LayerForWard)(struct _Layer *pxLayer);
     // void (*Backward)(struct _Layer *pxLayer, double *pOutputGradient);
 } Layer;
 
+void LayerForWard(struct _Layer *pxLayer)
+{
+    Node *pxCurtNode = NULL;
+
+    memset(pxLayer->pdOutputArray,  0, sizeof(double) * pxLayer->iNodeArraySize);
+    memset(pxLayer->pdZOutputArray, 0, sizeof(double) * pxLayer->iNodeArraySize);
+    
+    /* 计算wx+b */
+    for (int i = 0; i < pxLayer->iNodeArraySize; i++)
+    {
+        pxCurtNode = &pxLayer->pxNodeArray[i];
+
+        for (int j = 0; j < pxCurtNode->iInputSize; j++)
+        {
+            pxCurtNode->pdZOutput[0] += pxCurtNode->pdInputArray[i] * pxCurtNode->pdWeightArray[i];
+        }
+        
+        pxCurtNode->pdZOutput[0] += pxCurtNode->pdBias[0];
+    }
+    /* 激活函数 */
+    pxLayer->ActiveFunc(pxLayer->pdOutputArray, pxLayer->pdZOutputArray, pxLayer->iNodeArraySize);
+
+}
 
 typedef struct _Network
 {
@@ -164,7 +188,7 @@ static void GetActiveFunc(Layer *pxLayer, const char *sActivateFunType)
     {
         case ID_RELU:
             pxLayer->ActiveFunc   = ReLU;
-            pxLayer->_dActiveFunc = dReLU;
+            // pxLayer->_dActiveFunc = dReLU;
             break;
             
         default:
@@ -189,9 +213,6 @@ Network *CreateAndInit(int iInputSize, NetDeclareTable *pxTable)
 {
     Network *pxNet = malloc(sizeof(Network));
 
-    /* 计算NetworkManager需要的空间 */
-
-
     /* 初始化网络 */
 
     pxNet->pxLayerArray = malloc(sizeof(Layer) * pxTable->iLayerNumber);
@@ -207,6 +228,7 @@ Network *CreateAndInit(int iInputSize, NetDeclareTable *pxTable)
     {
         /* 每一层 */
         pxLayer = pxNet->pxLayerArray + i;
+        pxLayer->LayerForWard = LayerForWard;
         pxLayerTable = pxTable->pxLayerTable + i;
         
         /* 输入层(连接上一层输出) */
@@ -331,12 +353,16 @@ void Forward(Network *pxNet, double *pdInputArray)
     {
         Layer *pxLayer = pxNet->pxLayerArray + iLayerIndex;
 
+        // pxLayer->LayerForWard(pxLayer);
+
+        memset(pxLayer->pdZOutputArray, 0, sizeof(double) * pxLayer->iNodeArraySize);
+
         /* 每一个节点 计算累加 WX+b*/
         for (int iNodeIndex = 0; iNodeIndex < pxLayer->iNodeArraySize; iNodeIndex++)
         {
             Node *pxNode = pxLayer->pxNodeArray + iNodeIndex;
             
-            pxNode->pdZOutput[0] = 0.0f;
+            
 
             for (int i = 0; i < pxNode->iInputSize; i++)
             {
@@ -348,9 +374,7 @@ void Forward(Network *pxNet, double *pdInputArray)
         }
 
         /* 经过激活函数 */
-        pxLayer->ActiveFunc(pxLayer->pdOutputArray, 
-                            pxLayer->pdZOutputArray,
-                            pxLayer->iNodeArraySize);
+        pxLayer->ActiveFunc(pxLayer->pdOutputArray, pxLayer->pdZOutputArray, pxLayer->iNodeArraySize);
         
         // 对每个节点都单独计算激活结果
         // for (int iNodeIndex = 0; iNodeIndex < pxLayer->iNodeArraySize; iNodeIndex++)
@@ -525,7 +549,6 @@ int main()
         exit(1);
     }
 
-    /* ***************************** */
     srand(time(NULL));
 
     /* 网络结构描述 */
@@ -543,10 +566,12 @@ int main()
 
     for (int i = 0; i < tMnist.iTrainNum; i++)
     {
-        printf("Train: %d, ", i);
+        // printf("Train: %d, ", i);
+        double *pdInput  = tMnist.ppdTrainImages[i];
+        double *pdOutput = tMnist.ppdTrainLabels[i];
 
         /* 前向传播 */
-        Forward(pxNet, tMnist.ppdTrainImages[i]);
+        Forward(pxNet, pdInput);
 
         // /* 输出结果向量 */
         // for (int j = 0; j < pxNet->iOutputArraySize; j++)
@@ -560,18 +585,37 @@ int main()
         // printf("|| Index: %d, Max: %f, ", iMaxIndex, dMax);
 
         /* 后向传播 */
-        Backward(pxNet, 0.08, tMnist.ppdTrainLabels[i]);
+        Backward(pxNet, 0.05, pdOutput);
 
         // printf("\n");
 
     }
 
+#if 0
     for (int i = 0; i < tMnist.iTestNum; i++)
     {
-        printf("Test: %d, \n", i);
+        if (i % 100 == 30)
+        {
+            printf("Test: %d, \n \t", i);
+            /* 计算 */
+            Forward(pxNet, tMnist.ppdTestImages[i]);
 
-        Forward(pxNet, tMnist.ppdTestImages[i]);
+            for (int j = 0; j < 10; j++)
+            {
+                printf("%lf, ", tMnist.ppdTestLabels[i][j]);
+            }
+            printf("\n\t");
+            for (int j = 0; j < 10; j++)
+            {
+                printf("%lf, ", pxNet->pdOutputArray[j]);
+            }
+            
+            printf("\n");
+        }
+        
+        
     }
+#endif
 
     Release(pxNet);
     
